@@ -1,1 +1,1 @@
-# Remote Jobs Platform - US Salary Only
+# Remote Jobs Platform - Mostly US Salary Only
