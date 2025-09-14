@@ -1,0 +1,51 @@
+# Core FastAPI dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Database dependencies
+sqlalchemy==2.0.23
+aiosqlite==0.19.0
+alembic==1.13.1
+
+# MongoDB dependencies
+motor==3.3.2
+pymongo==4.6.0
+
+# Data Lake dependencies
+boto3==1.34.0
+botocore==1.34.0
+
+# AI/ML dependencies
+# Bump OpenAI SDK to support o1-mini via Responses API
+openai==1.45.0
+anthropic==0.7.8
+google-generativeai==0.3.2
+
+# Task scheduling
+apscheduler==3.10.4
+
+# HTTP client
+httpx==0.25.2
+aiohttp==3.9.1
+
+# Data processing
+pandas==2.1.4
+numpy==1.25.2
+
+# Utilities
+python-multipart==0.0.6
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-dotenv==1.0.0
+
+# Development dependencies
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.11.0
+flake8==6.1.0
+mypy==1.7.1
+
+# Logging and monitoring
+structlog==23.2.0

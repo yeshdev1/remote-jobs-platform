@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: remote_jobs
+      POSTGRES_USER: remote_user
+      POSTGRES_PASSWORD: remote_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U remote_user -d remote_jobs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for caching and Celery
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # Backend API
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://remote_user:remote_password@postgres:5432/remote_jobs
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./backend:/app
+      - ./logs:/app/logs
+
+  # Frontend
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+  # Scraper service
+  scraper:
+    build: ./scraper
+    environment:
+      - DATABASE_URL=postgresql://remote_user:remote_password@postgres:5432/remote_jobs
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./scraper:/app
+      - ./logs:/app/logs
+
+  # Scheduler service
+  scheduler:
+    build: ./scheduler
+    environment:
+      - DATABASE_URL=postgresql://remote_user:remote_password@postgres:5432/remote_jobs
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./scheduler:/app
+      - ./logs:/app/logs
+
+volumes:
+  postgres_data:
+  redis_data:

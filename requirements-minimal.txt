@@ -1,0 +1,27 @@
+# FastAPI and web framework
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Database (SQLite)
+sqlalchemy
+alembic
+
+# Basic utilities
+python-dotenv
+pydantic
+
+# Simple data processing (avoiding pandas for now)
+# pandas  # Will add later if needed
+
+# AI APIs
+anthropic
+openai
+
+# Basic web scraping
+requests
+beautifulsoup4
+lxml
+
+# Logging
+loguru
