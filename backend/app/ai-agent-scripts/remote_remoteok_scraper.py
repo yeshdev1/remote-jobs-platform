@@ -14,7 +14,7 @@ HEADERS = {
 }
 
 JOB_SOURCES = [
-    "https://remoteok.com/api",
+    "http://api.scraperapi.com?api_key=ca099c3bd247489876ad688cbf37edde&url=https://remoteok.com/api",
 ]
 
 def extract_job_listings(json_data):
@@ -225,7 +225,7 @@ def main():
         
         if json_data:
             # Parse the HTML
-            job_listings = extract_job_listings(json_data)[:10]
+            job_listings = extract_job_listings(json_data)
             
             if job_listings:
                 print(f"Found {len(job_listings)} job listings, analyzing with AI...")

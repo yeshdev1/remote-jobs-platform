@@ -213,7 +213,7 @@ def main(max_jobs_per_source=10):
             job_listings = extract_job_listings(xml_content)
             
             # Limit the number of jobs to process per source
-            jobs_to_analyze = job_listings[:max_jobs_per_source]
+            jobs_to_analyze = job_listings
             
             if jobs_to_analyze:
                 print(f"Found {len(job_listings)} job listings, analyzing {len(jobs_to_analyze)} with AI...")

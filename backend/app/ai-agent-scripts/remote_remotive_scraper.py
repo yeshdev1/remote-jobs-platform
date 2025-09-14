@@ -222,7 +222,7 @@ def main():
         
         if json_data:
             # Parse the HTML to extract job listings
-            job_listings = extract_job_listings(json_data)[:3]
+            job_listings = extract_job_listings(json_data)
             
             # Limit the number of jobs to process per source
             
