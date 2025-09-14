@@ -105,6 +105,151 @@ def job_exists_by_url(cursor: sqlite3.Cursor, url: str) -> bool:
     count = cursor.fetchone()[0]
     return count > 0
 
+def validate_remote_job_with_o1(job_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate if a job is truly international remote or USA remote only using o1-mini
+    
+    Args:
+        job_data: Job data dictionary containing title, company, description, etc.
+    
+    Returns:
+        Dictionary with validation results including is_valid, remote_type, and reasoning
+    """
+    from openai import OpenAI
+    import json
+    import re
+    
+    # Get OpenAI API key
+    api_key = get_openai_api_key()
+    if not api_key:
+        print("⚠️ OpenAI API key not found for validation")
+        return {
+            "is_valid": False,
+            "remote_type": "unknown",
+            "job_type": "unknown",
+            "reasoning": "No API key available for validation",
+            "confidence": 0.0,
+            "red_flags": []
+        }
+    
+    client = OpenAI(api_key=api_key)
+    
+    # Extract key information for validation
+    title = job_data.get('title', '')
+    company = job_data.get('company', '')
+    description = job_data.get('description', '')
+    location = job_data.get('location', '')
+    
+    validation_prompt = f"""
+    You are a job validation expert. Analyze this job posting to determine if it meets BOTH criteria:
+    1. It's truly remote work (international or USA remote only)
+    2. It's a software development/engineering OR product/UX/UI design role
+
+    Job Information:
+    - Title: {title}
+    - Company: {company}
+    - Location: {location}
+    - Description: {description}
+
+    REMOTE VALIDATION Criteria:
+    1. The job must be 100% remote (no office requirements, no specific city/state requirements)
+    2. The job must be either:
+       - International remote (can be done from anywhere in the world)
+       - USA remote (can be done from anywhere in the United States)
+    3. The job must NOT require:
+       - Physical presence in a specific office
+       - Specific time zone requirements that limit location
+       - Local travel or in-person meetings
+       - Work visa sponsorship for international candidates (unless explicitly stated)
+
+    JOB TYPE VALIDATION Criteria:
+    The job must be ONE of these types:
+    - Software Development/Engineering (frontend, backend, full-stack, mobile, DevOps, QA, etc.)
+    - Product Management/Product Owner roles
+    - UX/UI Design (user experience, user interface, product design, etc.)
+    - Data Science/Data Engineering (if technical/engineering focused)
+    - Technical Writing (if for software/technical products)
+    - Technical Product Marketing (if for software/tech products)
+
+    REJECT these job types:
+    - Sales, Marketing (non-technical), Customer Success, Support
+    - HR, Finance, Operations, Business Development
+    - Content Writing, Social Media, Copywriting (non-technical)
+    - Administrative, Executive Assistant roles
+    - Legal, Compliance, Accounting
+    - Healthcare, Education, Consulting (non-tech)
+
+    Red Flags to Watch For:
+    REMOTE RED FLAGS:
+    - "Hybrid" or "partially remote" positions
+    - "Must be located in [specific city/state]"
+    - "Occasional office visits required"
+    - "Must work in [specific time zone]"
+    - "Local candidates preferred"
+    
+    JOB TYPE RED FLAGS:
+    - Sales, marketing, or business development focus
+    - Customer support or success roles
+    - Administrative or operational roles
+    - Non-technical writing or content creation
+    - HR, finance, or legal roles
+
+    Return ONLY a JSON object with this exact structure:
+    {{
+        "is_valid": true/false,
+        "remote_type": "international" or "usa_only" or "not_remote",
+        "job_type": "software_dev" or "product" or "ux_ui_design" or "not_tech",
+        "confidence": 0.0-1.0,
+        "reasoning": "Brief explanation covering both remote and job type validation",
+        "red_flags": ["list", "of", "any", "concerning", "phrases", "found"]
+    }}
+    """
+    
+    try:
+        response = client.chat.completions.create(
+            model="o1-mini",
+            messages=[
+                {"role": "user", "content": validation_prompt}
+            ]
+        )
+        
+        ai_response = response.choices[0].message.content
+        
+        # Extract JSON from the response
+        json_match = re.search(r'```json\s*(\{.*?\})\s*```', ai_response, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(1)
+        else:
+            # Try to find JSON without code blocks
+            json_match = re.search(r'(\{.*\})', ai_response, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1)
+            else:
+                json_str = ai_response
+        
+        # Parse the JSON response
+        validation_result = json.loads(json_str)
+        
+        # Ensure all required fields are present
+        validation_result.setdefault("is_valid", False)
+        validation_result.setdefault("remote_type", "not_remote")
+        validation_result.setdefault("job_type", "not_tech")
+        validation_result.setdefault("confidence", 0.0)
+        validation_result.setdefault("reasoning", "Unable to determine")
+        validation_result.setdefault("red_flags", [])
+        
+        return validation_result
+        
+    except Exception as e:
+        print(f"❌ Error validating job with o1-mini: {e}")
+        return {
+            "is_valid": False,
+            "remote_type": "unknown",
+            "job_type": "unknown",
+            "reasoning": f"Validation error: {str(e)}",
+            "confidence": 0.0,
+            "red_flags": []
+        }
+
 def insert_jobs_into_db(jobs: List[Dict[str, Any]], source_platform: str) -> int:
     """Insert jobs directly into the database
     
@@ -139,8 +284,31 @@ def insert_jobs_into_db(jobs: List[Dict[str, Any]], source_platform: str) -> int
                 print(f"  ⏭️  Skipping None job")
                 continue
             
+            # Validate job is truly remote using o1-mini
+            print(f"  🔍 Validating job: {job.get('title', 'Unknown')} at {job.get('company', 'Unknown')}")
+            validation_result = validate_remote_job_with_o1(job)
+            
+            # Only proceed if job is validated as remote
+            if not validation_result.get('is_valid', False):
+                print(f"  ❌ Job rejected: {validation_result.get('reasoning', 'Not remote')}")
+                print(f"     Red flags: {validation_result.get('red_flags', [])}")
+                skipped_count += 1
+                continue
+            
+            # Log validation success
+            remote_type = validation_result.get('remote_type', 'unknown')
+            job_type = validation_result.get('job_type', 'unknown')
+            confidence = validation_result.get('confidence', 0.0)
+            print(f"  ✅ Job validated as {remote_type} remote, {job_type} role (confidence: {confidence:.2f})")
+            
             # Transform the job data
             transformed_job = transform_job_data(job, source_platform)
+            
+            # Add validation metadata to the job
+            transformed_job['ai_processed'] = True
+            transformed_job['ai_generated_summary'] = f"Validated as {remote_type} remote, {job_type} role. {validation_result.get('reasoning', '')}"
+            transformed_job['remote_type'] = remote_type
+            transformed_job['job_type'] = job_type
             
             # Check if job already exists by URL
             if job_exists_by_url(cursor, transformed_job.get('url')):

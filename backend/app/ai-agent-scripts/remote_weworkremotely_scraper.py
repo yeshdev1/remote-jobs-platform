@@ -7,7 +7,7 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 from openai import OpenAI
 # import boto3
-from db_utils import insert_jobs_into_db, get_openai_api_key
+from db_utils import insert_jobs_into_db, get_openai_api_key, validate_remote_job_with_o1
 
 # Get API key from .env file in project root
 api_key = get_openai_api_key()
@@ -137,7 +137,30 @@ def analyze_with_o1_mini(job_listings):
                 parsed_job['element_id'] = job['element_id']
                 parsed_job['job_id'] = job['job_id']
                 
-                analyzed_jobs.append(parsed_job)
+                # Validate the job is truly remote using o1-mini
+                print(f"  🔍 Validating remote status for job {job['element_id']}...")
+                validation_result = validate_remote_job_with_o1(parsed_job)
+                
+                # Only include jobs that are validated as remote AND tech roles
+                if validation_result.get('is_valid', False):
+                    remote_type = validation_result.get('remote_type', 'unknown')
+                    job_type = validation_result.get('job_type', 'unknown')
+                    confidence = validation_result.get('confidence', 0.0)
+                    print(f"  ✅ Job {job['element_id']} validated as {remote_type} remote, {job_type} role (confidence: {confidence:.2f})")
+                    
+                    # Add validation metadata
+                    parsed_job['ai_processed'] = True
+                    parsed_job['ai_generated_summary'] = f"Validated as {remote_type} remote, {job_type} role. {validation_result.get('reasoning', '')}"
+                    parsed_job['remote_type'] = remote_type
+                    parsed_job['job_type'] = job_type
+                    parsed_job['validation_confidence'] = confidence
+                    parsed_job['validation_red_flags'] = validation_result.get('red_flags', [])
+                    
+                    analyzed_jobs.append(parsed_job)
+                else:
+                    print(f"  ❌ Job {job['element_id']} rejected: {validation_result.get('reasoning', 'Not remote or not tech')}")
+                    print(f"     Red flags: {validation_result.get('red_flags', [])}")
+                
             except json.JSONDecodeError as e:
                 print(f"  Error parsing JSON for job {job['element_id']}: {e}")
                 analyzed_jobs.append({
@@ -213,7 +236,7 @@ def main(max_jobs_per_source=10):
             job_listings = extract_job_listings(xml_content)
             
             # Limit the number of jobs to process per source
-            jobs_to_analyze = job_listings[:max_jobs_per_source]
+            jobs_to_analyze = job_listings
             
             if jobs_to_analyze:
                 print(f"Found {len(job_listings)} job listings, analyzing {len(jobs_to_analyze)} with AI...")
