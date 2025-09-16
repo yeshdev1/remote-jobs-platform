@@ -32,7 +32,7 @@ export default function SearchBar({ onSearch, searchQuery = '', isSearching = fa
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="block w-full pl-12 pr-24 py-4 border-0 rounded-xl leading-5 bg-white/10 backdrop-blur-sm placeholder-gray-300 text-white focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:bg-white/20 transition-all duration-300 sm:text-lg shadow-lg"
-          placeholder="Search for remote jobs, skills, or companies..."
+          placeholder="Search"
         />
         <button
           type="submit"
