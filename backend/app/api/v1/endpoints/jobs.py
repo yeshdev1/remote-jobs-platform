@@ -21,8 +21,9 @@ async def get_jobs(
     company: Optional[str] = Query(None, description="Filter by company name"),
     source_platform: Optional[str] = Query(None, description="Filter by source platform (e.g., 'RemoteOK', 'Remotive', 'WeWorkRemotely')"),
     min_salary: Optional[float] = Query(None, ge=0, description="Minimum salary"),
-    max_salary: Optional[float] = Query(None, ge=0, description="Maximum salary"),
     experience_level: Optional[str] = Query(None, description="Experience level"),
+    job_type: Optional[str] = Query(None, description="Job type (e.g., 'software_dev', 'ux_ui_design', 'product')"),
+    employment_type: Optional[str] = Query(None, description="Employment type (e.g., 'Full-Time', 'Contract', 'Part-Time')"),
     skills: Optional[str] = Query(None, description="Required skills (comma-separated)"),
     days_old: Optional[int] = Query(30, ge=1, le=365, description="Jobs posted within X days")
 ):
@@ -50,17 +51,76 @@ async def get_jobs(
     if source_platform:
         query = query.where(Job.source_platform == source_platform)
     
-    # Filter by salary range
+    # Filter by minimum salary
     if min_salary:
         query = query.where(Job.salary_max >= min_salary)
-    if max_salary:
-        query = query.where(Job.salary_min <= max_salary)
     
 
     
     # Filter by experience level
     if experience_level:
         query = query.where(Job.experience_level == experience_level)
+    
+    # Filter by job type (job category: software_dev, ux_ui_design, product)
+    if job_type:
+        if job_type == "software_dev":
+            # Software development jobs
+            query = query.where(
+                or_(
+                    Job.job_type == "software_dev",
+                    Job.title.ilike("%software%"),
+                    Job.title.ilike("%engineer%"),
+                    Job.title.ilike("%developer%"),
+                    Job.title.ilike("%backend%"),
+                    Job.title.ilike("%frontend%"),
+                    Job.title.ilike("%full stack%"),
+                    Job.title.ilike("%fullstack%"),
+                    Job.title.ilike("%devops%"),
+                    Job.title.ilike("%mobile%"),
+                    Job.title.ilike("%ios%"),
+                    Job.title.ilike("%android%"),
+                    Job.title.ilike("%react%"),
+                    Job.title.ilike("%node%"),
+                    Job.title.ilike("%python%"),
+                    Job.title.ilike("%java%"),
+                    Job.title.ilike("%javascript%")
+                )
+            )
+        elif job_type == "ux_ui_design":
+            # Design jobs
+            query = query.where(
+                or_(
+                    Job.job_type == "ux_ui_design",
+                    Job.title.ilike("%design%"),
+                    Job.title.ilike("%ux%"),
+                    Job.title.ilike("%ui%"),
+                    Job.title.ilike("%user experience%"),
+                    Job.title.ilike("%user interface%"),
+                    Job.title.ilike("%graphic%"),
+                    Job.title.ilike("%visual%"),
+                    Job.title.ilike("%creative%")
+                )
+            )
+        elif job_type == "product":
+            # Product management jobs
+            query = query.where(
+                or_(
+                    Job.job_type == "product",
+                    Job.title.ilike("%product%"),
+                    Job.title.ilike("%pm%"),
+                    Job.title.ilike("%product manager%"),
+                    Job.title.ilike("%product owner%"),
+                    Job.title.ilike("%business analyst%"),
+                    Job.title.ilike("%strategy%")
+                )
+            )
+        else:
+            # Fallback to exact match
+            query = query.where(Job.job_type == job_type)
+    
+    # Filter by employment type (Full-Time, Contract, etc.)
+    if employment_type:
+        query = query.where(Job.job_type == employment_type)
     
     # Filter by skills
     if skills:
@@ -248,7 +308,8 @@ async def search_jobs(
     limit: int = Query(100, ge=1, le=1000),
     source_platform: Optional[str] = Query(None, description="Filter by source platform (e.g., 'RemoteOK', 'Remotive', 'WeWorkRemotely')"),
     experience_level: Optional[str] = Query(None, description="Experience level"),
-    job_type: Optional[str] = Query(None, description="Job type")
+    job_type: Optional[str] = Query(None, description="Job type"),
+    employment_type: Optional[str] = Query(None, description="Employment type")
 ):
     """
     Search jobs by text query with optional filters.
@@ -275,6 +336,10 @@ async def search_jobs(
     # Add job type filter if provided
     if job_type:
         conditions.append(Job.job_type == job_type)
+    
+    # Add employment type filter if provided
+    if employment_type:
+        conditions.append(Job.job_type == employment_type)
     
     search_query = select(Job).where(and_(*conditions)).order_by(Job.created_at.desc())
     
