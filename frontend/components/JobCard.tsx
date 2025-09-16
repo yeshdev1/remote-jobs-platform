@@ -145,7 +145,7 @@ export default function JobCard({ job }: JobCardProps) {
                 href={job.application_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                className="px-4 py-2 bg-gradient-to-r from-slate-600 to-slate-800 text-white text-sm font-medium rounded-lg hover:from-slate-700 hover:to-slate-900 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
               >
                 Apply Now
               </a>

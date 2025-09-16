@@ -21,7 +21,7 @@ export default function JobFilters({ filters, onFiltersChange }: JobFiltersProps
       {/* Header with collapsible button for mobile */}
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-white flex items-center">
-          <span className="w-2 h-2 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full mr-2"></span>
+          <span className="w-2 h-2 bg-gradient-to-r from-slate-400 to-slate-600 rounded-full mr-2"></span>
           Advanced Filters
         </h3>
         

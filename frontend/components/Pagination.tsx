@@ -88,7 +88,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
                 onClick={() => onPageChange(pageNumber)}
                 className={`px-3 py-1 rounded-md ${
                   currentPage === pageNumber
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
+                    ? 'bg-gradient-to-r from-slate-600 to-slate-800 text-white'
                     : 'bg-white/10 backdrop-blur-sm text-gray-200 hover:bg-white/20'
                 }`}
                 aria-label={`Page ${pageNumber + 1}`}

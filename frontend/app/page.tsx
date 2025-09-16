@@ -169,13 +169,13 @@ export default function HomePage() {
 
   if (loading && jobs.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <div className="relative">
             <div className="w-32 h-32 mx-auto">
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full animate-spin"></div>
-              <div className="absolute inset-2 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 rounded-full"></div>
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full animate-pulse opacity-20"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 rounded-full animate-spin"></div>
+              <div className="absolute inset-2 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-full"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 rounded-full animate-pulse opacity-20"></div>
             </div>
           </div>
           <p className="mt-6 text-xl text-white font-medium">Loading remote jobs...</p>
@@ -191,12 +191,12 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Header */}
       <header className="bg-white/10 backdrop-blur-xl border-b border-white/20 shadow-2xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center">
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-white via-blue-100 to-purple-100 bg-clip-text text-transparent mb-3">
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-white via-gray-200 to-gray-300 bg-clip-text text-transparent mb-3">
               Remote Away
             </h1>
             <p className="text-xl text-gray-200 font-medium">
@@ -241,7 +241,7 @@ export default function HomePage() {
 
         {/* Results Summary */}
         <div className="mb-6">
-          <div className="bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-2xl">
+          <div className="bg-gradient-to-r from-slate-700/20 via-slate-600/20 to-slate-700/20 backdrop-blur-xl rounded-2xl p-6 border border-white/20 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-gray-200 text-lg">
