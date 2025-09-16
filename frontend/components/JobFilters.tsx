@@ -46,8 +46,8 @@ export default function JobFilters({ filters, onFiltersChange }: JobFiltersProps
       
       {/* Filters container - hidden on mobile when collapsed */}
       <div className={`${isExpanded ? 'block' : 'hidden md:block'} transition-all duration-300`}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Salary Range */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {/* Min Salary */}
           <div>
             <label className="block text-sm font-medium text-white mb-2">
               Min Salary
@@ -57,6 +57,20 @@ export default function JobFilters({ filters, onFiltersChange }: JobFiltersProps
               value={filters.minSalary}
               onChange={(e) => handleFilterChange('minSalary', e.target.value)}
               placeholder="50000"
+              className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:bg-white/20 text-white placeholder-gray-300 transition-all duration-200"
+            />
+          </div>
+
+          {/* Max Salary */}
+          <div>
+            <label className="block text-sm font-medium text-white mb-2">
+              Max Salary
+            </label>
+            <input
+              type="number"
+              value={filters.maxSalary}
+              onChange={(e) => handleFilterChange('maxSalary', e.target.value)}
+              placeholder="150000"
               className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:bg-white/20 text-white placeholder-gray-300 transition-all duration-200"
             />
           </div>
@@ -75,7 +89,6 @@ export default function JobFilters({ filters, onFiltersChange }: JobFiltersProps
               <option value="" className="bg-slate-800 text-white">All Categories</option>
               <option value="software_dev" className="bg-slate-800 text-white">Software Development</option>
               <option value="ux_ui_design" className="bg-slate-800 text-white">UX/UI Design</option>
-              <option value="product" className="bg-slate-800 text-white">Product Management</option>
             </select>
           </div>
 
@@ -119,6 +132,7 @@ export default function JobFilters({ filters, onFiltersChange }: JobFiltersProps
           <button
             onClick={() => onFiltersChange({
               minSalary: '',
+              maxSalary: '',
               experienceLevel: '',
               jobType: '',
               employmentType: '',

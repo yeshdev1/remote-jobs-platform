@@ -21,6 +21,7 @@ export default function HomePage() {
   const [totalPages, setTotalPages] = useState(0);
   const [filters, setFilters] = useState({
     minSalary: '',
+    maxSalary: '',
     experienceLevel: '',
     jobType: '',
     employmentType: '',
