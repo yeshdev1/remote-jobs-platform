@@ -60,20 +60,41 @@ export default function JobFilters({ filters, onFiltersChange }: JobFiltersProps
               className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:bg-white/20 text-white placeholder-gray-300 transition-all duration-200"
             />
           </div>
-          
+
+
+          {/* Job Category - Software vs Design */}
           <div>
             <label className="block text-sm font-medium text-white mb-2">
-              Max Salary
+              Job Category
             </label>
-            <input
-              type="number"
-              value={filters.maxSalary}
-              onChange={(e) => handleFilterChange('maxSalary', e.target.value)}
-              placeholder="200000"
-              className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:bg-white/20 text-white placeholder-gray-300 transition-all duration-200"
-            />
+            <select
+              value={filters.jobType || ''}
+              onChange={(e) => handleFilterChange('jobType', e.target.value)}
+              className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:bg-white/20 text-white transition-all duration-200"
+            >
+              <option value="" className="bg-slate-800 text-white">All Categories</option>
+              <option value="software_dev" className="bg-slate-800 text-white">Software Development</option>
+              <option value="ux_ui_design" className="bg-slate-800 text-white">UX/UI Design</option>
+              <option value="product" className="bg-slate-800 text-white">Product Management</option>
+            </select>
           </div>
 
+          {/* Employment Type - Full-Time vs Contract */}
+          <div>
+            <label className="block text-sm font-medium text-white mb-2">
+              Employment Type
+            </label>
+            <select
+              value={filters.employmentType || ''}
+              onChange={(e) => handleFilterChange('employmentType', e.target.value)}
+              className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:bg-white/20 text-white transition-all duration-200"
+            >
+              <option value="" className="bg-slate-800 text-white">All Employment Types</option>
+              <option value="Full-Time" className="bg-slate-800 text-white">Full-Time</option>
+              <option value="Contract" className="bg-slate-800 text-white">Contract</option>
+              <option value="Part-Time" className="bg-slate-800 text-white">Part-Time</option>
+            </select>
+          </div>
 
           {/* Source Platform */}
           <div>
@@ -98,8 +119,11 @@ export default function JobFilters({ filters, onFiltersChange }: JobFiltersProps
           <button
             onClick={() => onFiltersChange({
               minSalary: '',
-              maxSalary: '',
-              sourcePlatform: ''
+              experienceLevel: '',
+              jobType: '',
+              employmentType: '',
+              sourcePlatform: '',
+              daysOld: '30'
             })}
             className="px-8 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-lg hover:from-gray-700 hover:to-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500/50 focus:ring-offset-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
           >

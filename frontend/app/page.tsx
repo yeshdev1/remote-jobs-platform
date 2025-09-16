@@ -21,8 +21,11 @@ export default function HomePage() {
   const [totalPages, setTotalPages] = useState(0);
   const [filters, setFilters] = useState({
     minSalary: '',
-    maxSalary: '',
-    sourcePlatform: ''
+    experienceLevel: '',
+    jobType: '',
+    employmentType: '',
+    sourcePlatform: '',
+    daysOld: '30'
   });
 
   const fetchJobs = useCallback(async (page: number = currentPage) => {
@@ -41,12 +44,16 @@ export default function HomePage() {
         params.source_platform = filters.sourcePlatform;
       }
       
-      if (filters.minSalary) {
-        params.min_salary = parseFloat(filters.minSalary);
+      if (filters.jobType) {
+        params.job_type = filters.jobType;
       }
       
-      if (filters.maxSalary) {
-        params.max_salary = parseFloat(filters.maxSalary);
+      if (filters.employmentType) {
+        params.employment_type = filters.employmentType;
+      }
+      
+      if (filters.minSalary) {
+        params.min_salary = parseFloat(filters.minSalary);
       }
       
       console.log('Fetch params:', params);
@@ -86,7 +93,7 @@ export default function HomePage() {
     setCurrentPage(0);
     setJobs([]);
     fetchJobs(0);
-  }, [filters.sourcePlatform, filters.minSalary, filters.maxSalary, fetchJobs]);
+  }, [filters.sourcePlatform, filters.jobType, filters.employmentType, filters.minSalary, fetchJobs]);
 
   // We're now handling filtering directly in the API calls
   // This is just a fallback for client-side filtering if needed
@@ -134,6 +141,14 @@ export default function HomePage() {
         
         if (filters.sourcePlatform) {
           params.source_platform = filters.sourcePlatform;
+        }
+        
+        if (filters.jobType) {
+          params.job_type = filters.jobType;
+        }
+        
+        if (filters.employmentType) {
+          params.employment_type = filters.employmentType;
         }
         
         const data = await api.searchJobs(query, params);
@@ -296,7 +311,9 @@ export default function HomePage() {
                   const params = {
                     skip: page * jobsPerPage,
                     limit: jobsPerPage,
-                    source_platform: filters.sourcePlatform || undefined
+                    source_platform: filters.sourcePlatform || undefined,
+                    job_type: filters.jobType || undefined,
+                    employment_type: filters.employmentType || undefined
                   };
                   
                   console.log('Search params for pagination:', params);
