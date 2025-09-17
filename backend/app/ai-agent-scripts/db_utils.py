@@ -2,7 +2,7 @@ import sqlite3
 import os
 import sys
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 
 # Add the parent directories to the path so we can import from there
@@ -87,6 +87,142 @@ def get_db_connection():
     
     # If we get here, we couldn't find the database
     raise FileNotFoundError("Could not find the remote_jobs.db database file")
+
+def get_most_recent_scraped_time(cursor: sqlite3.Cursor, source_platform: str) -> Optional[str]:
+    """Get the most recent scraped_at time for a specific platform
+    
+    Args:
+        cursor: Database cursor
+        source_platform: Platform name (e.g., 'RemoteOK', 'Remotive', 'WeWorkRemotely')
+    
+    Returns:
+        Most recent scraped_at timestamp as string, or None if no records exist
+    """
+    try:
+        cursor.execute("""
+            SELECT MAX(scraped_at) 
+            FROM jobs 
+            WHERE source_platform = ? 
+            AND scraped_at IS NOT NULL
+        """, (source_platform,))
+        
+        result = cursor.fetchone()
+        if result and result[0]:
+            print(f"📅 Most recent scrape time for {source_platform}: {result[0]}")
+            return result[0]
+        else:
+            print(f"📅 No previous scrape time found for {source_platform}")
+            return None
+            
+    except Exception as e:
+        print(f"❌ Error getting most recent scraped time: {e}")
+        return None
+
+def parse_job_posted_date(job_data: Dict[str, Any]) -> Optional[datetime]:
+    """Parse job posted date from various formats to datetime object
+    
+    Args:
+        job_data: Job data dictionary containing posted date information
+        
+    Returns:
+        Parsed datetime object or None if parsing fails
+    """
+    posted_date = None
+    
+    # Try different field names that might contain the posted date
+    date_fields = ['posted_date', 'publication_date', 'date', 'epoch', 'created_at']
+    
+    for field in date_fields:
+        if field in job_data and job_data[field]:
+            date_value = job_data[field]
+            
+            try:
+                # Handle epoch timestamps
+                if field == 'epoch' and isinstance(date_value, (int, float)):
+                    posted_date = datetime.fromtimestamp(date_value)
+                    break
+                elif field == 'epoch' and isinstance(date_value, str) and date_value.isdigit():
+                    posted_date = datetime.fromtimestamp(int(date_value))
+                    break
+                
+                # Handle string dates
+                elif isinstance(date_value, str):
+                    # Try common date formats
+                    date_formats = [
+                        '%Y-%m-%d',
+                        '%Y-%m-%dT%H:%M:%S',
+                        '%Y-%m-%dT%H:%M:%SZ',
+                        '%Y-%m-%d %H:%M:%S',
+                        '%d/%m/%Y',
+                        '%m/%d/%Y',
+                        '%B %d, %Y',
+                        '%b %d, %Y',
+                    ]
+                    
+                    for fmt in date_formats:
+                        try:
+                            posted_date = datetime.strptime(date_value, fmt)
+                            break
+                        except ValueError:
+                            continue
+                    
+                    if posted_date:
+                        break
+                        
+                # Handle datetime objects
+                elif isinstance(date_value, datetime):
+                    posted_date = date_value
+                    break
+                    
+            except Exception as e:
+                print(f"⚠️ Error parsing date from {field}: {date_value} - {e}")
+                continue
+    
+    return posted_date
+
+def should_process_job(job_data: Dict[str, Any], most_recent_scraped_time: Optional[str]) -> bool:
+    """Determine if a job should be processed based on its posted date
+    
+    Args:
+        job_data: Job data dictionary
+        most_recent_scraped_time: Most recent scraped_at time from database
+        
+    Returns:
+        True if job should be processed, False otherwise
+    """
+    if not most_recent_scraped_time:
+        # If no previous scrape time, process all jobs
+        return True
+    
+    # Parse the job's posted date
+    job_posted_date = parse_job_posted_date(job_data)
+    
+    if not job_posted_date:
+        # If we can't parse the posted date, err on the side of processing
+        print(f"⚠️ Could not parse posted date for job, processing anyway")
+        return True
+    
+    try:
+        # Parse the most recent scraped time
+        most_recent_dt = datetime.fromisoformat(most_recent_scraped_time.replace('Z', '+00:00'))
+        
+        # Calculate cutoff time: 36 hours before the most recent scrape
+        cutoff_time = most_recent_dt - timedelta(hours=36)
+        
+        # Process jobs posted after the cutoff time (36 hours before last scrape)
+        should_process = job_posted_date > cutoff_time
+        
+        if should_process:
+            print(f"✅ Job posted {job_posted_date} > cutoff {cutoff_time} (36h before last scrape {most_recent_dt}) - PROCESSING")
+        else:
+            print(f"⏭️ Job posted {job_posted_date} <= cutoff {cutoff_time} (36h before last scrape {most_recent_dt}) - SKIPPING")
+            
+        return should_process
+        
+    except Exception as e:
+        print(f"❌ Error comparing dates: {e}")
+        # If date comparison fails, process the job to be safe
+        return True
 
 def job_exists_by_url(cursor: sqlite3.Cursor, url: str) -> bool:
     """Check if a job already exists in the database by URL

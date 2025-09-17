@@ -92,23 +92,6 @@ export default function JobFilters({ filters, onFiltersChange }: JobFiltersProps
             </select>
           </div>
 
-          {/* Employment Type - Full-Time vs Contract */}
-          <div>
-            <label className="block text-sm font-medium text-white mb-2">
-              Employment Type
-            </label>
-            <select
-              value={filters.employmentType || ''}
-              onChange={(e) => handleFilterChange('employmentType', e.target.value)}
-              className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:bg-white/20 text-white transition-all duration-200"
-            >
-              <option value="" className="bg-slate-800 text-white">All Employment Types</option>
-              <option value="Full-Time" className="bg-slate-800 text-white">Full-Time</option>
-              <option value="Contract" className="bg-slate-800 text-white">Contract</option>
-              <option value="Part-Time" className="bg-slate-800 text-white">Part-Time</option>
-            </select>
-          </div>
-
           {/* Source Platform */}
           <div>
             <label className="block text-sm font-medium text-white mb-2">
@@ -135,7 +118,6 @@ export default function JobFilters({ filters, onFiltersChange }: JobFiltersProps
               maxSalary: '',
               experienceLevel: '',
               jobType: '',
-              employmentType: '',
               sourcePlatform: '',
               daysOld: '30'
             })}

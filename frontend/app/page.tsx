@@ -24,7 +24,6 @@ export default function HomePage() {
     maxSalary: '',
     experienceLevel: '',
     jobType: '',
-    employmentType: '',
     sourcePlatform: '',
     daysOld: '30'
   });
@@ -47,10 +46,6 @@ export default function HomePage() {
       
       if (filters.jobType) {
         params.job_type = filters.jobType;
-      }
-      
-      if (filters.employmentType) {
-        params.employment_type = filters.employmentType;
       }
       
       if (filters.minSalary) {
@@ -94,7 +89,7 @@ export default function HomePage() {
     setCurrentPage(0);
     setJobs([]);
     fetchJobs(0);
-  }, [filters.sourcePlatform, filters.jobType, filters.employmentType, filters.minSalary, fetchJobs]);
+  }, [filters.sourcePlatform, filters.jobType, filters.minSalary, fetchJobs]);
 
   // We're now handling filtering directly in the API calls
   // This is just a fallback for client-side filtering if needed
@@ -146,10 +141,6 @@ export default function HomePage() {
         
         if (filters.jobType) {
           params.job_type = filters.jobType;
-        }
-        
-        if (filters.employmentType) {
-          params.employment_type = filters.employmentType;
         }
         
         const data = await api.searchJobs(query, params);
@@ -314,7 +305,6 @@ export default function HomePage() {
                     limit: jobsPerPage,
                     source_platform: filters.sourcePlatform || undefined,
                     job_type: filters.jobType || undefined,
-                    employment_type: filters.employmentType || undefined
                   };
                   
                   console.log('Search params for pagination:', params);
