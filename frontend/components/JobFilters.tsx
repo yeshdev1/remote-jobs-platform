@@ -61,21 +61,6 @@ export default function JobFilters({ filters, onFiltersChange }: JobFiltersProps
             />
           </div>
 
-          {/* Max Salary */}
-          <div>
-            <label className="block text-sm font-medium text-white mb-2">
-              Max Salary
-            </label>
-            <input
-              type="number"
-              value={filters.maxSalary}
-              onChange={(e) => handleFilterChange('maxSalary', e.target.value)}
-              placeholder="150000"
-              className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:bg-white/20 text-white placeholder-gray-300 transition-all duration-200"
-            />
-          </div>
-
-
           {/* Job Category - Software vs Design */}
           <div>
             <label className="block text-sm font-medium text-white mb-2">
@@ -115,9 +100,9 @@ export default function JobFilters({ filters, onFiltersChange }: JobFiltersProps
           <button
             onClick={() => onFiltersChange({
               minSalary: '',
-              maxSalary: '',
               experienceLevel: '',
               jobType: '',
+              employmentType: '',
               sourcePlatform: '',
               daysOld: '30'
             })}
