@@ -37,7 +37,7 @@ docker-compose up --build -d
 echo ""
 echo "🎉 Setup complete! The platform is starting up..."
 echo ""
-echo "�� Frontend: http://localhost:3000"
+echo "🌐 Frontend: http://localhost:3000"
 echo "🔧 Backend API: http://localhost:8000"
 echo "📊 API Docs: http://localhost:8000/docs"
 echo "🗄️  Database: localhost:5432"
