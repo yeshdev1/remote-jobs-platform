@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 import time
 # import boto3  # pyright: ignore[reportMissingImports]
 from db_utils import insert_jobs_into_db, get_openai_api_key, validate_remote_job_with_o1, job_exists_by_url, get_db_connection, get_most_recent_scraped_time, should_process_job
+from import_jobs_data import transform_job_data, insert_job
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -20,6 +21,52 @@ JOB_SOURCES = [
     "https://weworkremotely.com/categories/remote-design-jobs.rss",
     "https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss",
 ]
+
+def get_recent_jobs_dictionary():
+    """Get all jobs scraped in the past 2 days and return as URL dictionary
+    
+    Returns:
+        Dictionary with job URLs as keys and job data as values
+    """
+    from datetime import datetime, timedelta
+    
+    print("🔍 Fetching jobs from the past 2 days...")
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Calculate cutoff time (2 days ago)
+        cutoff_time = datetime.now() - timedelta(days=2)
+        cutoff_str = cutoff_time.strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Query jobs from the past 2 days
+        cursor.execute("""
+            SELECT url, title, company, scraped_at 
+            FROM jobs 
+            WHERE scraped_at >= ?
+            ORDER BY scraped_at DESC
+        """, (cutoff_str,))
+        
+        recent_jobs = cursor.fetchall()
+        conn.close()
+        
+        # Convert to dictionary with URL as key
+        jobs_dict = {}
+        for url, title, company, scraped_at in recent_jobs:
+            if url:  # Only include jobs with valid URLs
+                jobs_dict[url] = {
+                    'title': title,
+                    'company': company,
+                    'scraped_at': scraped_at
+                }
+        
+        print(f"📊 Found {len(jobs_dict)} jobs scraped in the past 2 days")
+        return jobs_dict
+        
+    except Exception as e:
+        print(f"❌ Error fetching recent jobs: {e}")
+        return {}
 
 def extract_url_from_job_data(job):
     """Extract URL from job data structure"""
@@ -138,8 +185,8 @@ def extract_job_listings(xml_content):
     
     return job_listings
 
-def analyze_with_o1_mini(job_listings):
-    """Use o1-mini to analyze each job listing individually"""
+def analyze_and_validate_with_o1_mini(job_listings, recent_jobs_dict):
+    """Use o1-mini to analyze and validate each job listing in a single call"""
     from openai import OpenAI
     import re
     
@@ -164,18 +211,72 @@ def analyze_with_o1_mini(job_listings):
     - salary: Salary information (from title or description)
     - tags: Array of technologies/skills mentioned (from title or description)
     - skills_analysis: Object with core_skills, implied_skills, and complementary_skills arrays
-    - if it is not either an technical or design job, then return null
+    
+    Additionally, validate if this job meets BOTH criteria:
+    1. It's truly remote work (international or USA remote only)
+    2. It's a software development/engineering OR product/UX/UI design role
+    
+    REMOTE VALIDATION Criteria:
+    1. The job must be 100% remote (no office requirements, no specific city/state requirements)
+    2. The job must be either:
+       - International remote (can be done from anywhere in the world)
+       - USA remote (can be done from anywhere in the United States)
+    3. The job must NOT require:
+       - Physical presence in a specific office
+       - Specific time zone requirements that limit location
+       - Local travel or in-person meetings
+       - Work visa sponsorship for international candidates (unless explicitly stated)
+    
+    JOB TYPE VALIDATION Criteria:
+    The job must be ONE of these types:
+    - Software Development/Engineering (frontend, backend, full-stack, mobile, DevOps, QA, etc.)
+    - Product Management/Product Owner roles
+    - UX/UI Design (user experience, user interface, product design, etc.)
+    - Data Science/Data Engineering (if technical/engineering focused)
+    - Technical Writing (if for software/technical products)
+    - Technical Product Marketing (if for software/tech products)
+    
+    REJECT these job types:
+    - Sales, Marketing (non-technical), Customer Success, Support
+    - HR, Finance, Operations, Business Development
+    - Content Writing, Social Media, Copywriting (non-technical)
+    - Administrative, Executive Assistant roles
+    - Legal, Compliance, Accounting
+    - Healthcare, Education, Consulting (non-tech)
     
     RSS item content:
     {job_html}
     
-    Return ONLY a valid JSON object with the extracted information. No additional text or explanation.
+    Return ONLY a valid JSON object with this exact structure:
+    {{
+        "title": "Job title",
+        "company": "Company name",
+        "job_type": "Employment type",
+        "location": "Location info",
+        "url": "Job URL",
+        "description": "Job description",
+        "salary": "Salary info",
+        "tags": ["technology", "skills", "array"],
+        "skills_analysis": {{
+            "core_skills": ["primary", "skills"],
+            "implied_skills": ["implied", "skills"],
+            "complementary_skills": ["additional", "skills"]
+        }},
+        "is_valid": true/false,
+        "remote_type": "international" or "usa_only" or "not_remote",
+        "job_type_category": "software_dev" or "product" or "ux_ui_design" or "not_tech",
+        "confidence": 0.0-1.0,
+        "reasoning": "Brief explanation covering both remote and job type validation",
+        "red_flags": ["list", "of", "any", "concerning", "phrases", "found"]
+    }}
+    
+    If the job is not technical/design OR not remote, set is_valid to false and return null for most fields.
     """
     
     analyzed_jobs = []
     
     for i, job in enumerate(job_listings):
-        print(f"  Analyzing job {i+1}/{len(job_listings)} (ID: {job['job_id']})...")
+        print(f"  Analyzing and validating job {i+1}/{len(job_listings)} (ID: {job['job_id']})...")
         
         try:
             response = client.chat.completions.create(
@@ -210,29 +311,34 @@ def analyze_with_o1_mini(job_listings):
                 # Add the original job_id to the parsed job
                 parsed_job['job_id'] = job['job_id']
                 
-                # Validate the job is truly remote using o1-mini
-                print(f"  🔍 Validating remote status for job {job['job_id']}...")
-                validation_result = validate_remote_job_with_o1(parsed_job)
+                # Check if job is valid (remote and tech)
+                if not parsed_job.get('is_valid', False):
+                    print(f"  ❌ Job {job['job_id']} rejected: {parsed_job.get('reasoning', 'Not remote or not tech')}")
+                    print(f"     Red flags: {parsed_job.get('red_flags', [])}")
+                    continue
                 
-                # Only include jobs that are validated as remote AND tech roles
-                if validation_result.get('is_valid', False):
-                    remote_type = validation_result.get('remote_type', 'unknown')
-                    job_type = validation_result.get('job_type', 'unknown')
-                    confidence = validation_result.get('confidence', 0.0)
-                    print(f"  ✅ Job {job['job_id']} validated as {remote_type} remote, {job_type} role (confidence: {confidence:.2f})")
-                    
-                    # Add validation metadata
-                    parsed_job['ai_processed'] = True
-                    parsed_job['ai_generated_summary'] = f"Validated as {remote_type} remote, {job_type} role. {validation_result.get('reasoning', '')}"
-                    parsed_job['remote_type'] = remote_type
-                    parsed_job['job_type'] = job_type
-                    parsed_job['validation_confidence'] = confidence
-                    parsed_job['validation_red_flags'] = validation_result.get('red_flags', [])
-                    
-                    analyzed_jobs.append(parsed_job)
-                else:
-                    print(f"  ❌ Job {job['job_id']} rejected: {validation_result.get('reasoning', 'Not remote or not tech')}")
-                    print(f"     Red flags: {validation_result.get('red_flags', [])}")
+                # Check if job URL exists in recent jobs dictionary
+                job_url = parsed_job.get('url', '')
+                if job_url and job_url in recent_jobs_dict:
+                    existing_job = recent_jobs_dict[job_url]
+                    print(f"  ⏭️  Skipping job {job['job_id']}: URL already exists in recent jobs ({existing_job['title']} at {existing_job['company']})")
+                    continue
+                
+                # Job is valid and new - add all required metadata for DB
+                remote_type = parsed_job.get('remote_type', 'unknown')
+                job_type_category = parsed_job.get('job_type_category', 'unknown')
+                confidence = parsed_job.get('confidence', 0.0)
+                print(f"  ✅ Job {job['job_id']} validated as {remote_type} remote, {job_type_category} role (confidence: {confidence:.2f})")
+                
+                # Add validation metadata for DB insertion
+                parsed_job['ai_processed'] = True
+                parsed_job['ai_generated_summary'] = f"Validated as {remote_type} remote, {job_type_category} role. {parsed_job.get('reasoning', '')}"
+                parsed_job['remote_type'] = remote_type
+                parsed_job['job_type'] = job_type_category
+                parsed_job['validation_confidence'] = confidence
+                parsed_job['validation_red_flags'] = parsed_job.get('red_flags', [])
+                
+                analyzed_jobs.append(parsed_job)
                 
             except json.JSONDecodeError as e:
                 print(f"  Error parsing JSON for job {job['job_id']}: {e}")
@@ -307,7 +413,80 @@ def print_scraping_summary(existing_count, new_count, inserted_count, source_pla
     
     print(f"{'='*60}")
 
+def insert_jobs_into_db_streamlined(jobs, source_platform):
+    """Insert jobs directly into the database without additional validation
+    
+    Args:
+        jobs: List of job dictionaries to insert (already validated by AI)
+        source_platform: Source platform name (e.g., 'RemoteOK', 'Remotive', 'WeWorkRemotely')
+    
+    Returns:
+        Number of jobs successfully inserted
+    """
+    if not jobs:
+        print("❌ No jobs to insert")
+        return 0
+    
+    print(f"🚀 Inserting {len(jobs)} pre-validated jobs from {source_platform} into database...")
+    
+    # Connect to database
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+    except Exception as e:
+        print(f"❌ Database connection error: {e}")
+        return 0
+    
+    imported_count = 0
+    skipped_count = 0
+    
+    for job in jobs:
+        try:
+            # Skip None jobs
+            if job is None:
+                print(f"  ⏭️  Skipping None job")
+                continue
+            
+            # Jobs are already validated by AI, so just transform and insert
+            print(f"  🔄 Processing job: {job.get('title', 'Unknown')} at {job.get('company', 'Unknown')}")
+            
+            # Transform the job data
+            transformed_job = transform_job_data(job, source_platform)
+            
+            # Check if job already exists by URL (final safety check)
+            if job_exists_by_url(cursor, transformed_job.get('url')):
+                print(f"  ⏭️  Skipping existing job: {transformed_job['title']} at {transformed_job['company']}")
+                skipped_count += 1
+                continue
+            
+            # Insert the job
+            job_id = insert_job(cursor, transformed_job)
+            imported_count += 1
+            
+            print(f"  ✅ Imported: {transformed_job['title']} at {transformed_job['company']}")
+            
+        except Exception as e:
+            print(f"  ❌ Error importing job: {e}")
+            continue
+    
+    # Commit all changes
+    conn.commit()
+    
+    # Show database stats for this platform
+    cursor.execute("SELECT COUNT(*) FROM jobs WHERE source_platform = ?", (source_platform,))
+    platform_count = cursor.fetchone()[0]
+    
+    print(f"📊 Successfully imported {imported_count} new jobs from {source_platform}")
+    print(f"📊 Skipped {skipped_count} existing jobs from {source_platform}")
+    print(f"📊 Total {source_platform} jobs in database: {platform_count}")
+    
+    conn.close()
+    return imported_count
+
 def main():
+    # First, get all jobs scraped in the past 2 days
+    recent_jobs_dict = get_recent_jobs_dictionary()
+    
     all_jobs = []
     total_skipped = 0
     
@@ -317,7 +496,7 @@ def main():
         
         if html_content:
             # Parse the XML to extract job listings
-            job_listings = extract_job_listings(html_content)
+            job_listings = extract_job_listings(html_content)[:2]
             
             if job_listings:
                 print(f"Found {len(job_listings)} job listings")
@@ -332,8 +511,8 @@ def main():
                 
                 print(f"Processing {len(new_jobs)} new jobs (skipping {skipped_count} older jobs)...")
                 
-                # Analyze only new jobs with AI
-                analyzed_jobs = analyze_with_o1_mini(new_jobs)
+                # Analyze and validate jobs with AI in single call, checking against recent jobs
+                analyzed_jobs = analyze_and_validate_with_o1_mini(new_jobs, recent_jobs_dict)
                 
                 if isinstance(analyzed_jobs, list):
                     all_jobs.extend(analyzed_jobs)
@@ -370,8 +549,8 @@ def main():
     
     print(f"✅ Saved {len(cleaned_jobs)} cleaned jobs to {out_path}")
     
-    # Insert jobs directly into the database
-    inserted_count = insert_jobs_into_db(cleaned_jobs, "WeWorkRemotely")
+    # Insert jobs directly into the database (no need for additional validation since it's done in AI call)
+    inserted_count = insert_jobs_into_db_streamlined(cleaned_jobs, "WeWorkRemotely")
     
     # Print comprehensive summary
     print_scraping_summary(total_skipped, len(valid_jobs), inserted_count, "WeWorkRemotely")
