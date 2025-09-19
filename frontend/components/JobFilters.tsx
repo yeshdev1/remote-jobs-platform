@@ -102,7 +102,6 @@ export default function JobFilters({ filters, onFiltersChange }: JobFiltersProps
               minSalary: '',
               experienceLevel: '',
               jobType: '',
-              employmentType: '',
               sourcePlatform: '',
               daysOld: '30'
             })}

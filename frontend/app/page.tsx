@@ -23,7 +23,6 @@ export default function HomePage() {
     minSalary: '',
     experienceLevel: '',
     jobType: '',
-    employmentType: '',
     sourcePlatform: '',
     daysOld: '30'
   });
@@ -32,7 +31,7 @@ export default function HomePage() {
     try {
       setLoading(true);
       console.log(`Fetching jobs from API (page ${page})...`);
-      console.log('API Base URL:', process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
+      console.log('API Base URL:', process.env.NEXT_PUBLIC_API_URL || 'https://remote-away.com');
       
       // Apply any active filters to the API request
       const params: any = {
